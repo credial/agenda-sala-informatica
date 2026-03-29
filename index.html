@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Agendamento da Sala de Informática da EEJSA</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      color: white;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    .logo {
+      width: 120px;
+      margin-top: 20px;
+    }
+
+    .titulo {
+      margin-top: 10px;
+      font-weight: bold;
+      font-size: 22px;
+      background: linear-gradient(90deg, #ffffff, #ffd54f, #ffffff);
+      background-size: 200%;
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: brilho 3s linear infinite;
+    }
+
+    @keyframes brilho {
+      0% { background-position: 0%; }
+      100% { background-position: 200%; }
+    }
+
+    .card {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      margin: 20px auto;
+    }
+
+    /* 🔥 CORREÇÃO AQUI */
+    input,
+    button {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+      border-radius: 5px;
+      border: none;
+      box-sizing: border-box; /* 👈 ESSA LINHA RESOLVE */
+    }
+
+    button {
+      background: #ff9800;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .btn-excluir {
+      background: #e53935;
+    }
+
+    .btn-editar {
+      background: #43a047;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    li {
+      background: white;
+      color: black;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <img src="logo.png" class="logo">
+
+    <h2 class="titulo">Sistema de Agendamento<br>da Sala de Informática da EEJSA</h2>
+
+    <div class="card">
+
+      <button onclick="loginGoogle()">Login com Google</button>
+      <p id="usuario"></p>
+
+      <hr>
+
+      <label>Nome do professor</label>
+      <input type="text" id="nome">
+
+      <label>Turma</label>
+      <input type="text" id="turma">
+
+      <label>Data</label>
+      <input type="date" id="data">
+
+      <label>Horário</label>
+      <input type="time" id="hora">
+
+      <button onclick="agendar()">Agendar</button>
+
+    </div>
+
+    <h3>Agendamentos</h3>
+    <ul id="lista"></ul>
+
+    <p style="margin-top:20px;">© 2026 Marcelo Leite. Todos os direitos reservados.</p>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdRUdyjwHw8uPe1K6OOGrNg0AN9j07Q9Y",
+      authDomain: "agenda-sala-de-informatica.firebaseapp.com",
+      projectId: "agenda-sala-de-informatica"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const emailsPermitidos = [
+      "credial3053@gmail.com",
+      "marceloleite260981@gmail.com",
+      "amanda.sousaavs@gmail.com",
+      "danilosalesbass@gmail.com",
+    ];
+
+    let usuarioLogado = null;
+
+    window.loginGoogle = async function () {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const email = result.user.email;
+
+      if (!emailsPermitidos.includes(email)) {
+        alert("Você não tem permissão!");
+        return;
+      }
+    };
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        usuarioLogado = user;
+        document.getElementById("usuario").innerText = "Logado: " + user.email;
+        listar();
+      }
+    });
+
+    window.agendar = async function () {
+
+      if (!usuarioLogado) {
+        alert("Faça login primeiro!");
+        return;
+      }
+
+      if (!emailsPermitidos.includes(usuarioLogado.email)) {
+        alert("Sem permissão!");
+        return;
+      }
+
+      const nome = document.getElementById("nome").value;
+      const turma = document.getElementById("turma").value;
+      const data = document.getElementById("data").value;
+      const hora = document.getElementById("hora").value;
+
+      if (!nome || !turma || !data || !hora) {
+        alert("Preencha tudo!");
+        return;
+      }
+
+      const snapshot = await getDocs(collection(db, "agendamentos"));
+
+      let conflito = false;
+
+      snapshot.forEach((d) => {
+        const item = d.data();
+        if (item.data === data && item.hora === hora) {
+          conflito = true;
+        }
+      });
+
+      if (conflito) {
+        alert("Horário ocupado!");
+        return;
+      }
+
+      await addDoc(collection(db, "agendamentos"), {
+        nome,
+        turma,
+        data,
+        hora,
+        email: usuarioLogado.email
+      });
+
+      alert("Agendado com sucesso!");
+      listar();
+    };
+
+    async function listar() {
+      const lista = document.getElementById("lista");
+      lista.innerHTML = "";
+
+      const snapshot = await getDocs(collection(db, "agendamentos"));
+
+      snapshot.forEach((d) => {
+        const item = d.data();
+        const id = d.id;
+
+        const dataFormatada = new Date(item.data).toLocaleDateString("pt-BR");
+
+        let botoes = "";
+
+        if (usuarioLogado && usuarioLogado.email === item.email) {
+          botoes = `
+        <button class="btn-editar" onclick="editar('${id}', '${item.data}', '${item.hora}')">Editar</button>
+        <button class="btn-excluir" onclick="excluir('${id}')">Excluir</button>
+      `;
+        }
+
+        lista.innerHTML += `
+      <li>
+        <strong>${dataFormatada} - ${item.hora}</strong><br>
+        ${item.nome} (${item.turma})<br>
+        ${botoes}
+      </li>
+    `;
+      });
+    }
+
+    window.excluir = async function (id) {
+      if (confirm("Deseja excluir?")) {
+        await deleteDoc(doc(db, "agendamentos", id));
+        listar();
+      }
+    };
+
+    window.editar = async function (id, dataAtual, horaAtual) {
+
+      const novaData = prompt("Nova data (AAAA-MM-DD):", dataAtual);
+      const novaHora = prompt("Novo horário (HH:MM):", horaAtual);
+
+      if (!novaData || !novaHora) return;
+
+      await updateDoc(doc(db, "agendamentos", id), {
+        data: novaData,
+        hora: novaHora
+      });
+
+      alert("Atualizado com sucesso!");
+      listar();
+    };
+
+  </script>
+
+</body>
+
+</html>
