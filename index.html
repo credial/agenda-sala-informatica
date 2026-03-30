@@ -49,7 +49,6 @@
       margin: 20px auto;
     }
 
-    /* 🔥 CORREÇÃO AQUI */
     input,
     button {
       padding: 10px;
@@ -57,7 +56,7 @@
       width: 100%;
       border-radius: 5px;
       border: none;
-      box-sizing: border-box; /* 👈 ESSA LINHA RESOLVE */
+      box-sizing: border-box;
     }
 
     button {
@@ -101,7 +100,7 @@
 
     <img src="logo.png" class="logo">
 
-    <h2 class="titulo">Sistema de Agendamento<br>da Sala de Informática da EEJSA</h2>
+    <h2 class="titulo">Sistema de Agendamento(teste)<br>da Sala de Informática da EEJSA</h2>
 
     <div class="card">
 
@@ -115,6 +114,10 @@
 
       <label>Turma</label>
       <input type="text" id="turma">
+
+      <!-- 🔥 NOVO CAMPO -->
+      <label>Disciplina</label>
+      <input type="text" id="disciplina">
 
       <label>Data</label>
       <input type="date" id="data">
@@ -151,8 +154,9 @@
     const emailsPermitidos = [
       "credial3053@gmail.com",
       "marceloleite260981@gmail.com",
-      "amanda.sousaavs@gmail.com",
+      "eldanerislima@gmail.com",
       "danilosalesbass@gmail.com",
+      "nathanamaral54@gmail.com",
     ];
 
     let usuarioLogado = null;
@@ -190,10 +194,11 @@
 
       const nome = document.getElementById("nome").value;
       const turma = document.getElementById("turma").value;
+      const disciplina = document.getElementById("disciplina").value; // 🔥 NOVO
       const data = document.getElementById("data").value;
       const hora = document.getElementById("hora").value;
 
-      if (!nome || !turma || !data || !hora) {
+      if (!nome || !turma || !disciplina || !data || !hora) {
         alert("Preencha tudo!");
         return;
       }
@@ -217,6 +222,7 @@
       await addDoc(collection(db, "agendamentos"), {
         nome,
         turma,
+        disciplina, // 🔥 NOVO
         data,
         hora,
         email: usuarioLogado.email
@@ -251,6 +257,7 @@
       <li>
         <strong>${dataFormatada} - ${item.hora}</strong><br>
         ${item.nome} (${item.turma})<br>
+        📚 ${item.disciplina || "Não informado"}<br>
         ${botoes}
       </li>
     `;
