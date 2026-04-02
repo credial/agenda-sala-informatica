@@ -50,6 +50,7 @@
     }
 
     input,
+    select,
     button {
       padding: 10px;
       margin: 5px 0;
@@ -91,6 +92,12 @@
       padding: 10px;
       border-radius: 5px;
     }
+
+    .turno {
+      margin-top: 15px;
+      font-weight: bold;
+      color: #ffd54f;
+    }
   </style>
 </head>
 
@@ -115,7 +122,6 @@
       <label>Turma</label>
       <input type="text" id="turma">
 
-      <!-- 🔥 NOVO CAMPO -->
       <label>Disciplina</label>
       <input type="text" id="disciplina">
 
@@ -123,7 +129,7 @@
       <input type="date" id="data">
 
       <label>Horário</label>
-      <input type="time" id="hora">
+      <select id="hora"></select>
 
       <button onclick="agendar()">Agendar</button>
 
@@ -151,6 +157,12 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
+    const horarios = [
+      "07:00","07:50","08:40","09:50","10:40",
+      "12:30","13:20","14:10","15:20",
+      "18:30","19:20","20:20","21:10","22:00"
+    ];
+
     const emailsPermitidos = [
       "credial3053@gmail.com",
       "marceloleite260981@gmail.com",
@@ -160,6 +172,57 @@
     ];
 
     let usuarioLogado = null;
+
+    function getTurno(hora) {
+      if (hora < "12:00") return "Manhã";
+      if (hora < "18:00") return "Tarde";
+      return "Noite";
+    }
+
+    async function carregarHorarios() {
+      const select = document.getElementById("hora");
+      const dataSelecionada = document.getElementById("data").value;
+
+      select.innerHTML = `<option value="">Selecione um horário</option>`;
+
+      const snapshot = await getDocs(collection(db, "agendamentos"));
+      let ocupados = [];
+
+      snapshot.forEach(d => {
+        const item = d.data();
+        if (item.data === dataSelecionada) {
+          ocupados.push(item.hora);
+        }
+      });
+
+      let turnoAtual = "";
+      let grupoAtual = null;
+
+      horarios.forEach(hora => {
+        const turno = getTurno(hora);
+
+        if (turno !== turnoAtual) {
+          turnoAtual = turno;
+          grupoAtual = document.createElement("optgroup");
+          grupoAtual.label = turno;
+          select.appendChild(grupoAtual);
+        }
+
+        const option = document.createElement("option");
+        option.value = hora;
+        option.textContent = hora;
+
+        if (ocupados.includes(hora)) {
+          option.disabled = true;
+          option.style.color = "red";
+          option.textContent += " (ocupado)";
+        }
+
+        grupoAtual.appendChild(option);
+      });
+    }
+
+    document.getElementById("data").addEventListener("change", carregarHorarios);
 
     window.loginGoogle = async function () {
       const provider = new GoogleAuthProvider();
@@ -194,7 +257,7 @@
 
       const nome = document.getElementById("nome").value;
       const turma = document.getElementById("turma").value;
-      const disciplina = document.getElementById("disciplina").value; // 🔥 NOVO
+      const disciplina = document.getElementById("disciplina").value;
       const data = document.getElementById("data").value;
       const hora = document.getElementById("hora").value;
 
@@ -222,7 +285,7 @@
       await addDoc(collection(db, "agendamentos"), {
         nome,
         turma,
-        disciplina, // 🔥 NOVO
+        disciplina,
         data,
         hora,
         email: usuarioLogado.email
@@ -230,6 +293,7 @@
 
       alert("Agendado com sucesso!");
       listar();
+      carregarHorarios();
     };
 
     async function listar() {
@@ -237,19 +301,26 @@
       lista.innerHTML = "";
 
       const snapshot = await getDocs(collection(db, "agendamentos"));
+      let dados = [];
 
       snapshot.forEach((d) => {
-        const item = d.data();
-        const id = d.id;
+        dados.push({ id: d.id, ...d.data() });
+      });
 
+      dados.sort((a, b) => {
+        if (a.data === b.data) return a.hora.localeCompare(b.hora);
+        return a.data.localeCompare(b.data);
+      });
+
+      dados.forEach((item) => {
         const dataFormatada = new Date(item.data).toLocaleDateString("pt-BR");
 
         let botoes = "";
 
         if (usuarioLogado && usuarioLogado.email === item.email) {
           botoes = `
-        <button class="btn-editar" onclick="editar('${id}', '${item.data}', '${item.hora}')">Editar</button>
-        <button class="btn-excluir" onclick="excluir('${id}')">Excluir</button>
+        <button class="btn-editar" onclick="editar('${item.id}', '${item.data}', '${item.hora}')">Editar</button>
+        <button class="btn-excluir" onclick="excluir('${item.id}')">Excluir</button>
       `;
         }
 
@@ -268,6 +339,7 @@
       if (confirm("Deseja excluir?")) {
         await deleteDoc(doc(db, "agendamentos", id));
         listar();
+        carregarHorarios();
       }
     };
 
@@ -285,6 +357,7 @@
 
       alert("Atualizado com sucesso!");
       listar();
+      carregarHorarios();
     };
 
   </script>
