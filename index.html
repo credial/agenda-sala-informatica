@@ -342,7 +342,8 @@
       });
 
       dados.forEach((item) => {
-        const dataFormatada = new Date(item.data).toLocaleDateString("pt-BR");
+        const [ano, mes, dia] = item.data.split("-");
+        const dataFormatada = `${dia}/${mes}/${ano}`;
 
         let botoes = "";
 
