@@ -254,12 +254,12 @@
 
   if (!emailsPermitidos.includes(email)) {
     alert("Você não tem permissão!");
-    await signOut(auth); // 🔥 força logout
+    await signOut(auth); // força logout
     return;
   }
 };
 
-    // 🔥 CONTROLE LOGIN / LOGOUT
+    // CONTROLE LOGIN / LOGOUT
     onAuthStateChanged(auth, (user) => {
       const btnLogin = document.getElementById("btnLogin");
       const btnLogout = document.getElementById("btnLogout");
@@ -347,24 +347,34 @@
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const limite = new Date();
-      limite.setDate(hoje.getDate() + 5);
-
       const snapshot = await getDocs(collection(db, "agendamentos"));
       let dados = [];
 
       snapshot.forEach((d) => {
-        const item = d.data();
-        const dataObj = new Date(item.data);
-        dataObj.setHours(0, 0, 0, 0);
+  const item = d.data();
 
-        // 🔥 FILTRO: só hoje + 5 dias
-        if (dataObj >= hoje && dataObj <= limite) {
-          dados.push({ id: d.id, ...item, dataObj });
-        }
-      });
+  const partes = item.data.split("-");
+  const dataObj = new Date(
+    Number(partes[0]),
+    Number(partes[1]) - 1,
+    Number(partes[2]),
+    12, 0, 0
+  );
 
-      // 🔥 ORDENAR
+  const hojeFiltro = new Date();
+  hojeFiltro.setHours(0, 0, 0, 0);
+
+  const limite = new Date();
+  limite.setDate(hojeFiltro.getDate() + 5);
+  limite.setHours(23, 59, 59, 999);
+
+  //  FILTRO CORRETO
+  if (dataObj >= hojeFiltro && dataObj <= limite) {
+    dados.push({ id: d.id, ...item, dataObj });
+  }
+});
+
+      //  ORDENAR
       dados.sort((a, b) => {
         if (a.data === b.data) return a.hora.localeCompare(b.hora);
         return a.data.localeCompare(b.data);
@@ -375,11 +385,11 @@
         let textoData = "";
 
         const dataHoje = new Date();
-        dataHoje.setHours(0, 0, 0, 0);
+dataHoje.setHours(12, 0, 0, 0);
 
-        const amanha = new Date();
-        amanha.setDate(dataHoje.getDate() + 1);
-        amanha.setHours(0, 0, 0, 0);
+const amanha = new Date(dataHoje);
+amanha.setDate(dataHoje.getDate() + 1);
+amanha.setHours(12, 0, 0, 0);
 
         if (item.dataObj.getTime() === dataHoje.getTime()) {
           textoData = "Hoje";
