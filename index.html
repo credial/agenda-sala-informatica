@@ -37,8 +37,13 @@
     }
 
     @keyframes brilho {
-      0% { background-position: 0%; }
-      100% { background-position: 200%; }
+      0% {
+        background-position: 0%;
+      }
+
+      100% {
+        background-position: 200%;
+      }
     }
 
     .card {
@@ -167,9 +172,9 @@
     const auth = getAuth(app);
 
     const horarios = [
-      "07:00","07:50","08:40","09:50","10:40",
-      "12:30","13:20","14:10","15:20",
-      "18:30","19:20","20:20","21:10","22:00"
+      "07:00", "07:50", "08:40", "09:50", "10:40",
+      "12:30", "13:20", "14:10", "15:20",
+      "18:30", "19:20", "20:20", "21:10", "22:00"
     ];
 
     const emailsPermitidos = [
@@ -243,15 +248,16 @@
     document.getElementById("data").addEventListener("change", carregarHorarios);
 
     window.loginGoogle = async function () {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const email = result.user.email;
+  const provider = new GoogleAuthProvider();
+  const result = await signInWithPopup(auth, provider);
+  const email = result.user.email;
 
-      if (!emailsPermitidos.includes(email)) {
-        alert("Você não tem permissão!");
-        return;
-      }
-    };
+  if (!emailsPermitidos.includes(email)) {
+    alert("Você não tem permissão!");
+    await signOut(auth); // 🔥 força logout
+    return;
+  }
+};
 
     // 🔥 CONTROLE LOGIN / LOGOUT
     onAuthStateChanged(auth, (user) => {
@@ -283,76 +289,106 @@
 
     window.agendar = async function () {
 
-      if (!usuarioLogado) {
-        alert("Faça login primeiro!");
-        return;
-      }
+  if (!usuarioLogado) {
+    alert("Faça login primeiro!");
+    return;
+  }
 
-      if (!emailsPermitidos.includes(usuarioLogado.email)) {
-        alert("Sem permissão!");
-        return;
-      }
+  if (!emailsPermitidos.includes(usuarioLogado.email)) {
+    alert("Sem permissão!");
+    return;
+  }
 
-      const nome = document.getElementById("nome").value;
-      const turma = document.getElementById("turma").value;
-      const disciplina = document.getElementById("disciplina").value;
-      const data = document.getElementById("data").value;
-      const hora = document.getElementById("hora").value;
+  const nome = document.getElementById("nome").value;
+  const turma = document.getElementById("turma").value;
+  const disciplina = document.getElementById("disciplina").value;
+  const data = document.getElementById("data").value;
+  const hora = document.getElementById("hora").value;
 
-      if (!nome || !turma || !disciplina || !data || !hora) {
-        alert("Preencha tudo!");
-        return;
-      }
+  if (!nome || !turma || !disciplina || !data || !hora) {
+    alert("Preencha tudo!");
+    return;
+  }
 
-      const snapshot = await getDocs(collection(db, "agendamentos"));
+  const snapshot = await getDocs(collection(db, "agendamentos"));
 
-      let conflito = false;
+  let conflito = false;
 
-      snapshot.forEach((d) => {
-        const item = d.data();
-        if (item.data === data && item.hora === hora) {
-          conflito = true;
-        }
-      });
+  snapshot.forEach((d) => {
+    const item = d.data();
+    if (item.data === data && item.hora === hora) {
+      conflito = true;
+    }
+  });
 
-      if (conflito) {
-        alert("Horário ocupado!");
-        return;
-      }
+  if (conflito) {
+    alert("Horário ocupado!");
+    return;
+  }
 
-      await addDoc(collection(db, "agendamentos"), {
-        nome,
-        turma,
-        disciplina,
-        data,
-        hora,
-        email: usuarioLogado.email
-      });
+  await addDoc(collection(db, "agendamentos"), {
+    nome,
+    turma,
+    disciplina,
+    data,
+    hora,
+    email: usuarioLogado.email
+  });
 
-      alert("Agendado com sucesso!");
-      listar();
-      carregarHorarios();
-    };
+  alert("Agendado com sucesso!");
+  listar();
+  carregarHorarios();
+};
 
     async function listar() {
       const lista = document.getElementById("lista");
       lista.innerHTML = "";
 
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+
+      const limite = new Date();
+      limite.setDate(hoje.getDate() + 5);
+
       const snapshot = await getDocs(collection(db, "agendamentos"));
       let dados = [];
 
       snapshot.forEach((d) => {
-        dados.push({ id: d.id, ...d.data() });
+        const item = d.data();
+        const dataObj = new Date(item.data);
+        dataObj.setHours(0, 0, 0, 0);
+
+        // 🔥 FILTRO: só hoje + 5 dias
+        if (dataObj >= hoje && dataObj <= limite) {
+          dados.push({ id: d.id, ...item, dataObj });
+        }
       });
 
+      // 🔥 ORDENAR
       dados.sort((a, b) => {
         if (a.data === b.data) return a.hora.localeCompare(b.hora);
         return a.data.localeCompare(b.data);
       });
 
       dados.forEach((item) => {
-        const [ano, mes, dia] = item.data.split("-");
-        const dataFormatada = `${dia}/${mes}/${ano}`;
+
+        let textoData = "";
+
+        const dataHoje = new Date();
+        dataHoje.setHours(0, 0, 0, 0);
+
+        const amanha = new Date();
+        amanha.setDate(dataHoje.getDate() + 1);
+        amanha.setHours(0, 0, 0, 0);
+
+        if (item.dataObj.getTime() === dataHoje.getTime()) {
+          textoData = "Hoje";
+        } else if (item.dataObj.getTime() === amanha.getTime()) {
+          textoData = "Amanhã";
+        } else {
+          const [ano, mes, dia] = item.data.split("-");
+          textoData = `${dia}/${mes}/${ano}`;
+        }
 
         let botoes = "";
 
@@ -365,7 +401,7 @@
 
         lista.innerHTML += `
       <li>
-        <strong>${dataFormatada} - ${item.hora}</strong><br>
+        <strong>${textoData} - ${item.hora}</strong><br>
         ${item.nome} (${item.turma})<br>
         📚 ${item.disciplina || "Não informado"}<br>
         ${botoes}
